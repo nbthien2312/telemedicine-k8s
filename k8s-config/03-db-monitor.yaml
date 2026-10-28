@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: db-monitor, namespace: telemedicine }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: db-monitor } }
+  template:
+    metadata: { labels: { app: db-monitor } }
+    spec:
+      containers: 
+      - name: adminer
+        image: adminer:latest
+        ports: [ { containerPort: 8080 } ]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: db-monitor-service, namespace: telemedicine }
+spec:
+  type: NodePort
+  selector: { app: db-monitor }
+  ports: [ { port: 8080, targetPort: 8080, nodePort: 30081 } ]

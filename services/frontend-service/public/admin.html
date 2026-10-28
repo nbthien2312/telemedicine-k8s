@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><title>Admin Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>.log-box { background: #f8f9fa; color: #333; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; font-family: monospace; height: 350px; overflow-y: auto; }</style>
+</head>
+<body style="background-color: #f4f7f6;">
+  <nav class="navbar navbar-expand-lg navbar-dark shadow-sm" style="background-color: #0d6efd;">
+    <div class="container"><a class="navbar-brand fw-bold" href="index.html"><i class="fas fa-hospital-user"></i> MediCare Admin Panel</a>
+      <ul class="navbar-nav ms-auto"><li class="nav-item"><a class="nav-link" href="index.html">Trở về Trang Chủ</a></li></ul>
+    </div>
+  </nav>
+  <div class="container mt-4">
+    <div class="card mb-4 border-0 shadow-sm border-top border-primary border-4">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-robot"></i> AI Autoscaler (Dự đoán Tải)</h5>
+        <button onclick="stressTest()" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-bolt"></i> Giả Lập Tải Nặng (Stress Test)</button>
+      </div>
+      <div class="card-body text-center" id="aiInfo">Đang kết nối mô hình AI...</div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4 border-0"><div class="card-header bg-white"><h5 class="text-primary fw-bold"><i class="fas fa-chart-line"></i> Biến Động Doanh Thu</h5></div>
+        <div class="card-body"><table class="table table-hover"><thead><tr><th>Mã GD</th><th>KH</th><th>Loại</th><th>Số Tiền</th></tr></thead><tbody id="paymentTable"></tbody></table></div></div>
+      </div>
+      <div class="col-md-6">
+        <div class="card shadow-sm mb-4 border-0"><div class="card-header bg-white"><h5 class="text-primary fw-bold"><i class="fas fa-envelope-open-text"></i> Log Sự Kiện (Kafka)</h5></div>
+        <div class="card-body"><div id="notifyBox" class="log-box">Đang lắng nghe sự kiện từ Redpanda...</div></div></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    async function load() {
+      const payments = await fetch('/api/payments').then(r=>r.json());
+      document.getElementById('paymentTable').innerHTML = payments.slice(0,8).map(p=>`<tr><td>${p.reference_code}</td><td>${p.customer_name}</td><td><span class="badge bg-light text-dark border">${p.type}</span></td><td class="text-success fw-bold">+${p.amount.toLocaleString()}đ</td></tr>`).join('');
+      const notis = await fetch('/api/notifications').then(r=>r.json());
+      document.getElementById('notifyBox').innerHTML = notis.length ? notis.join('<br><hr class="my-2 text-muted">') : 'Chưa có luồng dữ liệu Kafka...';
+      const ai = await fetch('/api/ai-status').then(r=>r.json());
+      if(ai.model) {
+        document.getElementById('aiInfo').innerHTML = `
+          <div class="row align-items-center"><div class="col-4 border-end text-muted">Request Hiện Tại<br><strong class="text-primary fs-2">${ai.current_requests}</strong> req/s</div>
+          <div class="col-4 border-end text-muted">Dự Đoán (5 phút)<br><strong class="text-warning fs-2">${ai.predicted_load_next_5m}</strong> req/s</div>
+          <div class="col-4 text-muted">Đề Xuất K8s<br><strong class="text-success fs-1">${ai.recommended_replicas}</strong> Pods <span class="badge bg-dark ms-2 align-middle">${ai.status}</span></div></div>
+        `;
+      }
+    }
+    async function stressTest() { for(let i=0; i<20; i++) fetch('/api/ai-status'); setTimeout(load, 1000); }
+    setInterval(load, 2000); load();
+  </script>
+</body></html>
